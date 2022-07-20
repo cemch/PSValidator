@@ -1,0 +1,34 @@
+/*******************************************************************************************************************
+REQUERIMIENTOS
+/*******************************************************************************************************************
+
+VALIDAR ESTÁNDAR DE NOMBRES
+
+C=Comienza con C para los catalogos. Ejemplo: C_APPRED_AZY-PRD  =>  C_{}_{}-{PRD|PPD-UAT-QUA-INT-DEV-OAT}
+D=Comienza con D para los DeliveryGroups. Ejemplo: D_APPRED_AZY-PRD
+
+Cmdlet para obtener Catalogos
+$brokerCatalogs = Get-BrokerCatalog | select name
+
+Cmdlet para obtener Delivery Groups
+$desktopGroups = Get-BrokerDesktopGroup | select name
+
+Allow any authenticated users to use this Delivery Group. 
+Get-BrokerAccessPolicyGroup
+/*******************************************************************************************************************
+VALIDAR QUE "ALLOWEDUSERS" ESTÉ SELECCIONADO ANYAUTHENTICATED
+Get-BrokerAccessPolicyRule -DesktopGroupName 'D_XXXX_AZY-PROD' -property IncludedUsers,AllowedUsers
+
+Los valores de la propiedad "AllowedUsers" : 
+- AnyAuthenticated
+- Filtered
+/*******************************************************************************************************************
+VALIDAR GRUPO EN AD PARA ESTANDAR DE NOMBRES (el que controla el acceso a los grupos)
+Controla el acceso a la aplicación. 
+
+/*******************************************************************************************************************
+GENERAR UN REPORTE SEMANAL DE LAS APLICACIONES
+
+Get-BrokerApplication | select ApplicationName
+
+/*******************************************************************************************************************
