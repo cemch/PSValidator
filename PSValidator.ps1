@@ -48,7 +48,7 @@ function Compare-CatalogName
 {
     [CmdletBinding()]
     [Alias()]
-    [OutputType([bool])]
+    [OutputType([psobject])]
     Param
     (
         # Catalog name to compare against naming standard
@@ -58,22 +58,28 @@ function Compare-CatalogName
             Position=0)]
         [string]$Name,
 
-        # Regular expression
+        # Regular expression for catalog names
         [Parameter(
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
         [string]$Regex = '^C_[A-Z]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
-
-    Begin { }
+    
     Process
     {
         $r = Compare-String -StringValue $Name -Regex $Regex
-        return $r
-    }
-    End { }
-
+        
+        $prop = @{
+            'Name'=$Name; 
+            'IsValid'=$r; 
+        }        
+        $obj = New-Object -TypeName psobject -Property $prop        
+        
+        Write-Verbose $obj
+        
+        return $obj
+    }    
 }
 
 
@@ -102,15 +108,14 @@ function Compare-DesktopGroupName
             Position=0)]
         [string]$Name,
 
-        # Regular expression
+        # Regular expression for delivery group names
         [Parameter(
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
         [string]$Regex = '^D_[A-Z]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'        
     )
-
-    Begin {}
+    
     Process
     {
         $r = Compare-String -StringValue $Name -Regex $Regex
@@ -124,36 +129,72 @@ function Compare-DesktopGroupName
         Write-Verbose $obj
         
         return $obj
-    }
-    End {}
-     
+    }         
 }
 
 <#
 .Synopsis
-   This function compares a broker desktop group name against the naming standard
+   This function writes log information about invalid names
 .DESCRIPTION
    
-This function make all actions with desktop groups. Valid or invalid. Logs or reports. 
+This function writes log information about invalid names found in Desktop Groups and Catalogs. 
 .EXAMPLE
-   Confirm-DesktopGroups
+   Write-InvalidNameLog
 #>
-function Confirm-DesktopGroups {
+function Write-InvalidNameLog {
 [CmdletBinding()]
-param (
+param (    
+    [Parameter(
+            Mandatory=$true,
+            ValueFromPipeline=$true, 
+            ValueFromPipelineByPropertyName=$true, 
+            Position=0)]
+    [string]
+    $Name, 
+
+    [Parameter(
+        Mandatory=$true,
+        ValueFromPipeline=$true, 
+        ValueFromPipelineByPropertyName=$true, 
+        Position=1)]
+    [bool]
+    $IsValid, 
+
     [Parameter()]
-    [switch]
-    $WarningLog
+    [string]
+    $Path = (Get-Location), 
+
+    [Parameter()]
+    [string]
+    $LogName = "InvalidNames"
 )
-    # Change Get-Service, put Get-BrokerDesktopGroup
-    $dgs = Get-Service | Select-Object Name | Compare-DesktopGroupName
-    
-    # TODO: CREATE A LOG FOR INVALID NAMES. 
 
-    # TODO: CREATE A REPORT FOR INVALID NAMES.
+Begin
+    {        
+        $year = (Get-Date).Year
+        $month = (Get-Date).Month
+        $day = (Get-date).Day
+        $time = (Get-Date).TimeOfDay
+        $fullPath = "$Path\$LogName-$year-$month-$day.txt"
+        $fullPath
 
-    return $dgs
+        if((Test-Path -Path $fullPath -PathType Leaf) -eq $false){
+            $firstLine = "Time,Name,IsValid"
+            $firstLine | Out-File -FilePath $fullPath -Append
+        }
+        
+    }
+    Process
+    {
+        $newLine = "$time,$Name,$IsValid"
+        $newLine | Out-File -FilePath $fullPath -Append
+    }
 }
 
-Confirm-DesktopGroups -WarningLog
+# write invalid Desktop group names to log file 
+# TODO: Change Get-Service for Get-BrokerDesktopGroup
+Get-Service | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog -LogName "Invalid-Desktop-Group-Names"
 
+# write invalid Catalog names to log file 
+# TODO: Change Get-Service for Get-BrokerCatalog
+Get-Service | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog -LogName "Invalid-Catalog-Names"
