@@ -63,7 +63,7 @@ function Compare-CatalogName
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
-        [string]$Regex = '^C_[A-Z]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
+        [string]$Regex = '^C_[APPYEL|APPGRE|LAPPBLU|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
     Process
@@ -114,7 +114,7 @@ function Compare-DesktopGroupName
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
-        [string]$Regex = '^D_[A-Z]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'        
+        [string]$Regex = '^D_[APPYEL|APPGRE|LAPPBLU|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
     Process
@@ -133,6 +133,67 @@ function Compare-DesktopGroupName
         return $obj
     }         
 }
+
+
+<#
+.Synopsis
+   This function compares a broker catalog name against the naming standard
+.DESCRIPTION
+   
+This function compares a broker catalog name against the naming standard and returns a boolean value.
+Returns true if the string matches the standard. 
+.EXAMPLE
+   Compare-CatalogName -StringValue 'C_APPRED_AZY-PRD'
+#>
+function Compare-FilteredRule
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([psobject])]
+    Param
+    (
+        # Broker Access Policy Rule Name to validate if it is filtered
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=0)]
+        [string]$Name,
+        
+        # Desktop group name
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=1)]
+        [string]$DesktopGroupName,
+
+        # Allowd users. Expected values are Filtered or AnyAuthenticated
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=2)]
+        [string]$AllowedUsers
+    )
+    
+    Process
+    {  
+        $isValid = $true; 
+        if($AllowedUsers -eq "Filtered"){
+            $isValid = $false; 
+        }
+
+        $prop = @{
+            'Name'=$Name; 
+            'IsValid'= $isValid; 
+            'Category'="Filtered-Rule";
+        }        
+        $obj = New-Object -TypeName psobject -Property $prop        
+        
+        Write-Verbose $obj
+        
+        return $obj
+    }    
+}
+
 
 <#
 .Synopsis
@@ -180,12 +241,11 @@ param (
 )
 
 Begin
-    {        
-        $year = (Get-Date).Year
-        $month = (Get-Date).Month
-        $day = (Get-date).Day
+    {      
+        $date = Get-Date -Format "yyyy-MM-dd"          
         $time = (Get-Date).TimeOfDay
-        $fullPath = "$Path\$LogName-$year-$month-$day.txt"
+
+        $fullPath = "$Path\$LogName-$date.txt"
         $fullPath
 
         if((Test-Path -Path $fullPath -PathType Leaf) -eq $false){
@@ -264,34 +324,52 @@ $header = @"
 return $header
 }
 
-function Write-InvalidLogs {
+function Write-InvalidNameReport {
+
+    param (
+
+        [Parameter()]
+        [string]
+        $Path = (Get-Location),     
+
+        [Parameter()]
+        [string]
+        $ReportName = "InvalidNames"
+    )
+    
+    # Path for html report
+    $date = Get-Date -Format "yyyy-MM-dd"              
+    $reportPath = "$Path\$ReportName-$date.html"    
+    $reportPath
+    
+    $DesktopGroupNames = Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Desktop Group Names</h2>"
+        
+    $CatalogNames = Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Catalog Names</h2>"
+    
+    $FilteredRules = Get-BrokerAccessPolicyRule -property Name,DesktopGroupName,AllowedUsers | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules</h2>"
+    
+    $Header = Get-ReportHeader
+    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
+
+    # Write html report to file. 
+    $HtmlReport | Out-File -FilePath $reportPath
+    
+}
+
+function Write-InvalidNameLogs {
     param ()
     
-    # write invalid Desktop group names to log file 
-    # TODO: Change Get-Service for Get-BrokerDesktopGroup
-    Get-Service | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    # write invalid Desktop group names to log file     
+    Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
 
-    # write invalid Catalog names to log file 
-    # TODO: Change Get-Service for Get-BrokerCatalog
-    Get-Service | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    # write invalid Catalog names to log file     
+    Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
 
-}
-
-function Write-HtmlReport {
-    param ()
-        
-    # write invalid Desktop group names to html report file 
-    # TODO: Change Get-Service for Get-BrokerDesktopGroup
-    $DesktopGroupNames = Get-Service | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Desktop Group Names</h2>"
-
-    # write invalid Desktop group names to html report file 
-    # TODO: Change Get-Service for Get-BrokerDesktopGroup
-    $CatalogNames = Get-Service | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Catalog Names</h2>"
-    $Header = Get-ReportHeader
-    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
-    $HtmlReport | Out-File -FilePath .\Report-Invalid-Names-2022-7-20.html
+    # write filtered policy rules to log file
+    Get-BrokerAccessPolicyRule | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
 
 }
 
-Write-InvalidLogs
-Write-HtmlReport
+Write-InvalidNameLogs
+Write-InvalidNameReport
+

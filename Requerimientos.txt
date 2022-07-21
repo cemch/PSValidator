@@ -22,6 +22,9 @@ Get-BrokerAccessPolicyRule -DesktopGroupName 'D_XXXX_AZY-PROD' -property Include
 Los valores de la propiedad "AllowedUsers" : 
 - AnyAuthenticated
 - Filtered
+
+$FilteredRules = Get-BrokerAccessPolicyRule -property name,AllowedUsers | Where {$_.AllowedUsers -eq "Filtered"}
+
 /*******************************************************************************************************************
 VALIDAR GRUPO EN AD PARA ESTANDAR DE NOMBRES (el que controla el acceso a los grupos)
 Controla el acceso a la aplicación. 
