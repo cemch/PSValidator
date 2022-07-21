@@ -73,6 +73,7 @@ function Compare-CatalogName
         $prop = @{
             'Name'=$Name; 
             'IsValid'=$r; 
+            'Category'="Catalog-Name";
         }        
         $obj = New-Object -TypeName psobject -Property $prop        
         
@@ -123,6 +124,7 @@ function Compare-DesktopGroupName
         $prop = @{
             'Name'=$Name; 
             'IsValid'=$r; 
+            'Category'="Desktop-Group-Name";
         }        
         $obj = New-Object -TypeName psobject -Property $prop        
         
@@ -160,6 +162,14 @@ param (
     [bool]
     $IsValid, 
 
+    [Parameter(
+        Mandatory=$true,
+        ValueFromPipeline=$true, 
+        ValueFromPipelineByPropertyName=$true, 
+        Position=2)]
+    [string]
+    $Category, 
+
     [Parameter()]
     [string]
     $Path = (Get-Location), 
@@ -179,22 +189,109 @@ Begin
         $fullPath
 
         if((Test-Path -Path $fullPath -PathType Leaf) -eq $false){
-            $firstLine = "Time,Name,IsValid"
+            $firstLine = "Time,Name,IsValid,Category"
             $firstLine | Out-File -FilePath $fullPath -Append
         }
         
     }
     Process
     {
-        $newLine = "$time,$Name,$IsValid"
+        $newLine = "$time,$Name,$IsValid,$Category"
         $newLine | Out-File -FilePath $fullPath -Append
     }
 }
 
-# write invalid Desktop group names to log file 
-# TODO: Change Get-Service for Get-BrokerDesktopGroup
-Get-Service | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog -LogName "Invalid-Desktop-Group-Names"
+function Get-ReportHeader {
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([psobject])]
+    Param()
+$header = @"
+<style>
+    h1 {
 
-# write invalid Catalog names to log file 
-# TODO: Change Get-Service for Get-BrokerCatalog
-Get-Service | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog -LogName "Invalid-Catalog-Names"
+        font-family: Arial, Helvetica, sans-serif;
+        color: #e68a00;
+        font-size: 28px;
+
+    }
+    
+    h2 {
+
+        font-family: Arial, Helvetica, sans-serif;
+        color: #000099;
+        font-size: 16px;
+
+    }
+
+   table {
+		font-size: 12px;
+		border: 0px; 
+		font-family: Arial, Helvetica, sans-serif;
+	} 
+	
+    td {
+		padding: 4px;
+		margin: 0px;
+		border: 0;
+	}
+	
+    th {
+        background: #395870;
+        background: linear-gradient(#49708f, #293f50);
+        color: #fff;
+        font-size: 11px;
+        text-transform: uppercase;
+        padding: 10px 15px;
+        vertical-align: middle;
+	}
+
+    tbody tr:nth-child(even) {
+        background: #f0f0f2;
+    }
+
+        #CreationDate {
+
+        font-family: Arial, Helvetica, sans-serif;
+        color: #ff3300;
+        font-size: 12px;
+
+    }
+
+</style>
+"@
+
+return $header
+}
+
+function Write-InvalidLogs {
+    param ()
+    
+    # write invalid Desktop group names to log file 
+    # TODO: Change Get-Service for Get-BrokerDesktopGroup
+    Get-Service | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+
+    # write invalid Catalog names to log file 
+    # TODO: Change Get-Service for Get-BrokerCatalog
+    Get-Service | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+
+}
+
+function Write-HtmlReport {
+    param ()
+        
+    # write invalid Desktop group names to html report file 
+    # TODO: Change Get-Service for Get-BrokerDesktopGroup
+    $DesktopGroupNames = Get-Service | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Desktop Group Names</h2>"
+
+    # write invalid Desktop group names to html report file 
+    # TODO: Change Get-Service for Get-BrokerDesktopGroup
+    $CatalogNames = Get-Service | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Catalog Names</h2>"
+    $Header = Get-ReportHeader
+    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
+    $HtmlReport | Out-File -FilePath .\Report-Invalid-Names-2022-7-20.html
+
+}
+
+Write-InvalidLogs
+Write-HtmlReport
