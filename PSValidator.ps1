@@ -137,13 +137,7 @@ function Compare-DesktopGroupName
 
 <#
 .Synopsis
-   This function compares a broker catalog name against the naming standard
-.DESCRIPTION
-   
-This function compares a broker catalog name against the naming standard and returns a boolean value.
-Returns true if the string matches the standard. 
-.EXAMPLE
-   Compare-CatalogName -StringValue 'C_APPRED_AZY-PRD'
+   This function compares a if access policy rule is filtered
 #>
 function Compare-FilteredRule
 {
@@ -178,7 +172,7 @@ function Compare-FilteredRule
     {  
         $isValid = $true; 
         if($AllowedUsers -eq "Filtered"){
-            $isValid = $false; 
+            $isValid = $false; # if AllowedUsers is Filtered, then IsValid is False. 
         }
 
         $prop = @{
@@ -202,9 +196,9 @@ function Compare-FilteredRule
    
 This function writes log information about invalid names found in Desktop Groups and Catalogs. 
 .EXAMPLE
-   Write-InvalidNameLog
+   Write-InvalidNameToLogFile
 #>
-function Write-InvalidNameLog {
+function Write-InvalidNameToLogFile {
 [CmdletBinding()]
 param (    
     [Parameter(
@@ -260,6 +254,50 @@ Begin
         $newLine | Out-File -FilePath $fullPath -Append
     }
 }
+
+
+<#
+.Synopsis
+   This function indicates if application-specific user filter is enabled.
+#>
+function Compare-FilteredApplication
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([psobject])]
+    Param
+    (
+        # Application Name to validate if it is filtered
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=0)]
+        [string]$ApplicationName,        
+
+        # UserFilteredEnabled is the property to validate. Must be true. 
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=1)]
+        [bool]$UserFilteredEnabled
+    )
+    
+    Process
+    { 
+
+        $prop = @{
+            'Name'=$ApplicationName; 
+            'IsValid'= $UserFilteredEnabled; 
+            'Category'="Filtered-Application";
+        }        
+        $obj = New-Object -TypeName psobject -Property $prop        
+        
+        Write-Verbose $obj
+        
+        return $obj
+    }    
+}
+
 
 function Get-ReportHeader {
     [CmdletBinding()]
@@ -324,7 +362,11 @@ $header = @"
 return $header
 }
 
-function Write-InvalidNameReport {
+<#
+.Synopsis
+   This function writes the HTML Report. 
+#>
+function Write-HtmlReport {
 
     param (
 
@@ -348,84 +390,40 @@ function Write-InvalidNameReport {
     
     $FilteredRules = Get-BrokerAccessPolicyRule -property Name,DesktopGroupName,AllowedUsers | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules</h2>"
     
+    $FilteredApplications = Get-brokerApplication -property ApplicationName,UserFilterEnabled | Where-Object {$_.UserFilterEnabled -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Enabled</h2>"
+
     $Header = Get-ReportHeader
-    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
+    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
 
     # Write html report to file. 
     $HtmlReport | Out-File -FilePath $reportPath
     
 }
 
-
 <#
 .Synopsis
-   This function compares a broker catalog name against the naming standard
-.DESCRIPTION
-   
-This function compares a broker catalog name against the naming standard and returns a boolean value.
-Returns true if the string matches the standard. 
-.EXAMPLE
-   Compare-CatalogName -StringValue 'C_APPRED_AZY-PRD'
+   This function writes all logs for the script. 
 #>
-function Compare-FilteredApplication
-{
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([psobject])]
-    Param
-    (
-        # Application Name to validate if it is filtered
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
-        [string]$Name,        
-
-        # UserFilteredEnabled is the property to validate. Must be true. 
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
-        [bool]$UserFilteredEnabled
-    )
-    
-    Process
-    { 
-
-        $prop = @{
-            'Name'=$Name; 
-            'IsValid'= $UserFilteredEnabled; 
-            'Category'="Filtered-Application";
-        }        
-        $obj = New-Object -TypeName psobject -Property $prop        
-        
-        Write-Verbose $obj
-        
-        return $obj
-    }    
-}
-
-
-function Write-InvalidNameLogs {
+function Write-LogFiles {
     param ()
     
     # write invalid Desktop group names to log file     
-    Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write invalid Catalog names to log file     
-    Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write filtered policy rules to log file
-    Get-BrokerAccessPolicyRule | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    Get-BrokerAccessPolicyRule | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate if application is user-filtered and write to log file if any. 
-    Get-brokerApplication | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    Get-brokerApplication | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate application groups against naming standard. 
-    # Get-brokerApplication | Compare-FilteredApplicationGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameLog
+    # Get-brokerApplication | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
 }
 
-Write-InvalidNameLogs
-Write-InvalidNameReport
+Write-LogFiles
+Write-HtmlReport
 
