@@ -389,21 +389,26 @@ function Compare-ADGroupName
     
     Process
     {
+        # comparing group name against the naming standard. 
         $r = Compare-String -StringValue $GroupName -Regex $Regex
         
         $prop = @{
             'Name'="$GroupName ($ApplicationName)"; 
             'IsValid'=$r; 
             'Category'="ADGroup-Name";
-        }        
+        }  
+        # creating the object for logging or reporting the results.       
         $obj = New-Object -TypeName psobject -Property $prop        
-        
-        Write-Verbose $obj
         
         return $obj
     }    
 }
 
+
+<#
+.Synopsis
+   This function returns css style for the html report.
+#>
 function Get-ReportHeader {
     [CmdletBinding()]
     [Alias()]
@@ -469,43 +474,44 @@ return $header
 
 <#
 .Synopsis
-   This function writes the HTML Report. 
+   This function indicates if application-specific group complies with the naming standard.
 #>
-function Write-HtmlReport {
+function Compare-ApplicationGroupName
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([psobject])]
+    Param
+    (
+        # Application Name to with the group name is validated
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=0)]
+        [string]$ApplicationName,        
 
-    param (
-
-        [Parameter()]
-        [string]
-        $Path = (Get-Location),     
-
-        [Parameter()]
-        [string]
-        $ReportName = "InvalidNames"
+        # Groups associated to the application filter
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=1)]
+        [string[]]$AssociatedUserFullNames
     )
     
-    # Path for html report
-    $date = Get-Date -Format "yyyy-MM-dd"              
-    $reportPath = "$Path\$ReportName-$date.html"    
-    $reportPath
-    
-    $DesktopGroupNames = Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names</h2>"
-        
-    $CatalogNames = Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names</h2>"
-    
-    $FilteredRules = Get-BrokerAccessPolicyRule -property Name,DesktopGroupName,AllowedUsers | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules</h2>"
-    
-    $FilteredApplications = Get-brokerApplication -property ApplicationName,UserFilterEnabled | Where-Object {$_.UserFilterEnabled -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled</h2>"
+    Process
+    {         
+       $results = @(); # Array of resultant objects to return. 
 
-    $ApplicationGroupNames = BrokerApplication -property ApplicationName,AssociatedUserFullNames | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names</h2>"
-    
-    $Header = Get-ReportHeader
-    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
+       # comparing each group name against the naming standard. 
+        foreach ($groupName in $AssociatedUserFullNames) {            
+            $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName
+            $results += $res; # adding objects to the array. 
+        }
 
-    # Write html report to file. 
-    $HtmlReport | Out-File -FilePath $reportPath
-    
+        return $results
+    }    
 }
+
 
 <#
 .Synopsis
@@ -534,40 +540,46 @@ function Write-LogFiles {
 
 <#
 .Synopsis
-   This function indicates if application-specific group complies with the naming standard.
+   This function writes the HTML Report. 
 #>
-function Compare-ApplicationGroupName
-{
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([psobject])]
-    Param
-    (
-        # Application Name to with the group name is validated
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
-        [string]$ApplicationName,        
+function Write-HtmlReport {
 
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
-        [string[]]$AssociatedUserFullNames
+    param (
+
+        [Parameter()]
+        [string]
+        $Path = (Get-Location),     
+
+        [Parameter()]
+        [string]
+        $ReportName = "InvalidNames"
     )
     
-    Process
-    {         
-       $results = @(); 
+    # Path for html report
+    $date = Get-Date -Format "yyyy-MM-dd"              
+    $reportPath = "$Path\$ReportName-$date.html"    
+    $reportPath
+    
+    #Creating each section of the html report.
 
-        foreach ($groupName in $AssociatedUserFullNames) {            
-            $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName
-            $results += $res; 
-        }
+    $DesktopGroupNames = Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names</h2>"
+        
+    $CatalogNames = Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names</h2>"
+    
+    $FilteredRules = Get-BrokerAccessPolicyRule -property Name,DesktopGroupName,AllowedUsers | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules</h2>"
+    
+    $FilteredApplications = Get-brokerApplication -property ApplicationName,UserFilterEnabled | Where-Object {$_.UserFilterEnabled -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled</h2>"
 
-        return $results
-    }    
+    $ApplicationGroupNames = BrokerApplication -property ApplicationName,AssociatedUserFullNames | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names</h2>"
+    
+    $Header = Get-ReportHeader
+
+    # Generating html report. 
+    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
+
+    # Write html report to file. 
+    $HtmlReport | Out-File -FilePath $reportPath
+    
 }
 
 Write-LogFiles
