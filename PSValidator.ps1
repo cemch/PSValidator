@@ -334,7 +334,7 @@ function Compare-FilteredApplication
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=1)]
-        [bool]$UserFilteredEnabled
+        [bool]$UserFilterEnabled
     )
     
     Process
@@ -342,7 +342,7 @@ function Compare-FilteredApplication
 
         $prop = @{
             'Name'=$ApplicationName; 
-            'IsValid'= $UserFilteredEnabled; 
+            'IsValid'= $UserFilterEnabled; 
             'Category'="Filtered-Application";
         }        
         $obj = New-Object -TypeName psobject -Property $prop        
@@ -376,7 +376,7 @@ function Compare-ADGroupName
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
-        [string]$Regex = '^[A-Z]{3}_GL_[A-Z]{3}-[a-zA-Z0-9_]+',
+        [string]$Regex = '^[A-Z]{3}_GL_[A-Z]{3}-.+',
 
         # Application name owner of the group. 
         [Parameter(

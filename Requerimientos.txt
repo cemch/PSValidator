@@ -44,7 +44,7 @@ La propiedad 'AssociatedUserFullNames' entrega el nombre sin el dominio. Ej: {GD
 AssociatedUserFullNames: (System.String[]) - es un array de strings. 
 
 Standard name 
-^[A-Z]{3}_GL_[A-Z]{3}-[a-zA-Z0-9_]+
+^[A-Z]{3}_GL_[A-Z]{3}-.+
 SCM_GL_GVA-ConsoleSCCM
 
 {3 A-Z}{2 GL}{3 A-Z}-Any
