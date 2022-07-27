@@ -1,58 +1,4 @@
 
-function Get-FakeBrokerApplication {
-
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([psobject])]
-    Param
-    (
-        # Application Name to with the group name is validated
-        [Parameter(
-            Mandatory=$false,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
-        [string]$ApplicationName,        
-
-        [Parameter(
-            Mandatory=$false,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
-        [string[]]$AssociatedUserFullNames
-    )
-        
-    $fakeApplications = @(); 
-
-    $props1 = @{
-        'ApplicationName'=[string]"App1"; 
-        'AssociatedUserFullNames'=[string[]]"Group11","Group12"; 
-        'UserFilterEnabled'=[bool]$true;
-    }        
-    $fakeApp1 = New-Object -TypeName psobject -Property $props1
-    
-    $fakeApplications += $fakeApp1; 
-
-    $props2 = @{
-        'ApplicationName'=[string]"App2"; 
-        'AssociatedUserFullNames'=[string[]]"Group21","Group22"; 
-        'UserFilterEnabled'=[bool]$true;
-    }        
-    $fakeApp2 = New-Object -TypeName psobject -Property $props2
-    
-    $fakeApplications += $fakeApp2; 
-    
-    $props3 = @{
-        'ApplicationName'=[string]"App3"; 
-        'AssociatedUserFullNames'=[string[]]"SCM_GL_GVA-ConsoleSCCM","Group22"; 
-        'UserFilterEnabled'=[bool]$true;
-    }        
-    $fakeApp3 = New-Object -TypeName psobject -Property $props3
-    
-    $fakeApplications += $fakeApp3; 
-
-    return $fakeApplications
-
-} 
-
 <#
 .Synopsis
    This function compares a string against a regular expression
@@ -118,7 +64,7 @@ function Compare-CatalogName
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
-        [string]$Regex = '^C_[APPYEL|APPGRE|LAPPBLU|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
+        [string]$Regex = '^C_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
     Process
@@ -169,7 +115,7 @@ function Compare-DesktopGroupName
             Mandatory=$false,
             ValueFromPipeline=$false,
             Position=1)]        
-        [string]$Regex = '^D_[APPYEL|APPGRE|LAPPBLU|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
+        [string]$Regex = '^D_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
     Process

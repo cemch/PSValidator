@@ -6,6 +6,8 @@ VALIDAR ESTÁNDAR DE NOMBRES
 
 C=Comienza con C para los catalogos. Ejemplo: C_APPRED_AZY-PRD  =>  C_{}_{}-{PRD|PPD-UAT-QUA-INT-DEV-OAT}
 D=Comienza con D para los DeliveryGroups. Ejemplo: D_APPRED_AZY-PRD
+LOS SCOPES (6 Letras) son: 
+[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]
 
 1. VALIDAR ESTÁNDAR DE NOMBRES DE CATALOGOS: 
 
