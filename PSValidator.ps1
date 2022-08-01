@@ -110,11 +110,18 @@ function Compare-DesktopGroupName
             Position=0)]
         [string]$Name,
 
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipeline=$true, 
+            ValueFromPipelineByPropertyName=$true, 
+            Position=1)]
+        [string]$ScopeName, 
+
         # Regular expression for delivery group names
         [Parameter(
             Mandatory=$false,
             ValueFromPipeline=$false,
-            Position=1)]        
+            Position=2)]        
         [string]$Regex = '^D_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
@@ -125,11 +132,10 @@ function Compare-DesktopGroupName
         $prop = @{
             'Name'=$Name; 
             'IsValid'=$r; 
-            'Category'="Desktop-Group-Name";
+            'Category'="Desktop-Group-Name";   
+            'ScopeName'=$ScopeName;        
         }        
         $obj = New-Object -TypeName psobject -Property $prop        
-        
-        Write-Verbose $obj
         
         return $obj
     }         
@@ -207,32 +213,34 @@ param (
             ValueFromPipeline=$true, 
             ValueFromPipelineByPropertyName=$true, 
             Position=0)]
-    [string]
-    $Name, 
+    [string]$Name, 
 
     [Parameter(
         Mandatory=$true,
         ValueFromPipeline=$true, 
         ValueFromPipelineByPropertyName=$true, 
         Position=1)]
-    [bool]
-    $IsValid, 
+    [bool]$IsValid, 
 
     [Parameter(
         Mandatory=$true,
         ValueFromPipeline=$true, 
         ValueFromPipelineByPropertyName=$true, 
         Position=2)]
-    [string]
-    $Category, 
+    [string]$Category, 
+
+    [Parameter(
+        Mandatory=$true,
+        ValueFromPipeline=$true, 
+        ValueFromPipelineByPropertyName=$true, 
+        Position=3)]
+    [string]$ScopeName, 
+    
+    [Parameter()]
+    [string]$Path = (Get-Location), 
 
     [Parameter()]
-    [string]
-    $Path = (Get-Location), 
-
-    [Parameter()]
-    [string]
-    $LogName = "InvalidNames"
+    [string]$LogName = "InvalidNames"
 )
 
 Begin
@@ -240,18 +248,18 @@ Begin
         $date = Get-Date -Format "yyyy-MM-dd"          
         $time = (Get-Date).TimeOfDay
 
-        $fullPath = "$Path\$LogName-$date.txt"
+        $fullPath = "$Path\$ScopeName-$LogName-$date.txt"
         $fullPath
 
         if((Test-Path -Path $fullPath -PathType Leaf) -eq $false){
-            $firstLine = "Time,Name,IsValid,Category"
+            $firstLine = "Time,Name,IsValid,Category,Scope"
             $firstLine | Out-File -FilePath $fullPath -Append
         }
         
     }
     Process
     {
-        $newLine = "$time,$Name,$IsValid,$Category"
+        $newLine = "$time,$Name,$IsValid,$Category,$ScopeName"
         $newLine | Out-File -FilePath $fullPath -Append
     }
 }
@@ -464,10 +472,27 @@ function Compare-ApplicationGroupName
    This function writes all logs for the script. 
 #>
 function Write-LogFiles {
-    param ()
+    
+    param (
+
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $ScopeName, 
+        
+        [Parameter()]
+        [string]
+        $Path = (Get-Location),     
+
+        [Parameter()]
+        [string]
+        $ReportName = "InvalidNames"
+        
+    )    
     
     # write invalid Desktop group names to log file     
-    Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write invalid Catalog name to log file     
     Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
@@ -492,6 +517,12 @@ function Write-HtmlReport {
 
     param (
 
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $ScopeName, 
+        
         [Parameter()]
         [string]
         $Path = (Get-Location),     
@@ -499,6 +530,7 @@ function Write-HtmlReport {
         [Parameter()]
         [string]
         $ReportName = "InvalidNames"
+
     )
     
     # Path for html report
@@ -508,7 +540,7 @@ function Write-HtmlReport {
     
     #Creating each section of the html report.
 
-    $DesktopGroupNames = Get-BrokerDesktopGroup | Select-Object Name | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names</h2>"
+    $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names</h2>"
         
     $CatalogNames = Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names</h2>"
     
@@ -528,6 +560,26 @@ function Write-HtmlReport {
     
 }
 
-Write-LogFiles
-Write-HtmlReport
+function Start-Validation {
 
+    param (
+
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string] $ScopeName, 
+        
+        [Parameter()]
+        [string] $Path = (Get-Location),     
+
+        [Parameter()]
+        [string] $ReportName = "InvalidNames"
+
+    )
+        
+    Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+    Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+
+}
+
+Start-Validation -ScopeName "APPBLU"
