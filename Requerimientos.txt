@@ -57,3 +57,4 @@ Only group
 LOS SCOPES (6 Letras) son: 
 [APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]
 Esto para que cada área (scope) pueda ver y realizar las remediaciones.
+

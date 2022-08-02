@@ -59,11 +59,18 @@ function Compare-CatalogName
             Position=0)]
         [string]$Name,
 
+        # Scope name to validate
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=1)]
+        [string]$ScopeName,
+        
         # Regular expression for catalog names
         [Parameter(
             Mandatory=$false,
             ValueFromPipeline=$false,
-            Position=1)]        
+            Position=2)]        
         [string]$Regex = '^C_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
@@ -75,7 +82,9 @@ function Compare-CatalogName
             'Name'=$Name; 
             'IsValid'=$r; 
             'Category'="Catalog-Name";
+            'ScopeName'=$ScopeName; 
         }        
+
         $obj = New-Object -TypeName psobject -Property $prop        
         
         Write-Verbose $obj
@@ -495,7 +504,7 @@ function Write-LogFiles {
     Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write invalid Catalog name to log file     
-    Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write filtered policy rule to log file
     Get-BrokerAccessPolicyRule | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
@@ -535,14 +544,14 @@ function Write-HtmlReport {
     
     # Path for html report
     $date = Get-Date -Format "yyyy-MM-dd"              
-    $reportPath = "$Path\$ReportName-$date.html"    
+    $reportPath = "$Path\$ScopeName-$ReportName-$date.html"    
     $reportPath
     
     #Creating each section of the html report.
 
-    $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names</h2>"
+    $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
         
-    $CatalogNames = Get-BrokerCatalog | Select-Object Name | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names</h2>"
+    $CatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
     
     $FilteredRules = Get-BrokerAccessPolicyRule -property Name,DesktopGroupName,AllowedUsers | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules</h2>"
     
@@ -577,9 +586,13 @@ function Start-Validation {
 
     )
         
+    # Write to csv file by scope. 
     Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+
+    # write to html report file by scope. 
     Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName
 
 }
 
+# start validation job by scope. 
 Start-Validation -ScopeName "APPBLU"
