@@ -181,7 +181,14 @@ function Compare-FilteredRule
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=2)]
-        [string]$AllowedUsers
+        [string]$AllowedUsers, 
+
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=3)]
+        [string]$ScopeName
+
     )
     
     Process
@@ -195,10 +202,10 @@ function Compare-FilteredRule
             'Name'=$Name; 
             'IsValid'= $isValid; 
             'Category'="Filtered-Rule";
+            'ScopeName'=$ScopeName; 
         }        
+
         $obj = New-Object -TypeName psobject -Property $prop        
-        
-        Write-Verbose $obj
         
         return $obj
     }    
@@ -297,7 +304,13 @@ function Compare-FilteredApplication
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=1)]
-        [bool]$UserFilterEnabled
+        [bool]$UserFilterEnabled, 
+
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=2)]
+        [bool]$ScopeName
     )
     
     Process
@@ -307,10 +320,9 @@ function Compare-FilteredApplication
             'Name'=$ApplicationName; 
             'IsValid'= $UserFilterEnabled; 
             'Category'="Filtered-Application";
+            'ScopeName'=$ScopeName; 
         }        
         $obj = New-Object -TypeName psobject -Property $prop        
-        
-        Write-Verbose $obj
         
         return $obj
     }    
@@ -346,8 +358,14 @@ function Compare-ADGroupName
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=2)]
-        [string]$ApplicationName = ""
-        
+        [string]$ApplicationName = "", 
+
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=3)]
+        [string]$ScopeName
+    
     )
     
     Process
@@ -359,6 +377,7 @@ function Compare-ADGroupName
             'Name'="$GroupName ($ApplicationName)"; 
             'IsValid'=$r; 
             'Category'="ADGroup-Name";
+            'ScopeName'=$ScopeName; 
         }  
         # creating the object for logging or reporting the results.       
         $obj = New-Object -TypeName psobject -Property $prop        
@@ -458,7 +477,13 @@ function Compare-ApplicationGroupName
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=1)]
-        [string[]]$AssociatedUserFullNames
+        [string[]]$AssociatedUserFullNames, 
+
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=2)]
+        [string]$ScopeName
     )
     
     Process
@@ -467,7 +492,7 @@ function Compare-ApplicationGroupName
 
        # comparing each group name against the naming standard. 
         foreach ($groupName in $AssociatedUserFullNames) {            
-            $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName
+            $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
             $results += $res; # adding objects to the array. 
         }
 
@@ -500,6 +525,8 @@ function Write-LogFiles {
         
     )    
     
+    $adminScope = Get-AdminScope -Name $ScopeName; 
+
     # write invalid Desktop group names to log file     
     Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
@@ -507,13 +534,13 @@ function Write-LogFiles {
     Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write filtered policy rule to log file
-    Get-BrokerAccessPolicyRule | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate if application is user-filtered and write to log file if any. 
-    Get-brokerApplication | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate application group name against naming standard. 
-    Get-BrokerApplication | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
 }
 
@@ -547,22 +574,24 @@ function Write-HtmlReport {
     $reportPath = "$Path\$ScopeName-$ReportName-$date.html"    
     $reportPath
     
+    $adminScope = Get-AdminScope -Name $ScopeName; 
+
     #Creating each section of the html report.
 
     $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
         
     $CatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
     
-    $FilteredRules = Get-BrokerAccessPolicyRule -property Name,DesktopGroupName,AllowedUsers | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules</h2>"
+    $FilteredRules = Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
     
-    $FilteredApplications = Get-brokerApplication -property ApplicationName,UserFilterEnabled | Where-Object {$_.UserFilterEnabled -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled</h2>"
+    $FilteredApplications = Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Where-Object {$_.UserFilterEnabled -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
 
-    $ApplicationGroupNames = BrokerApplication -property ApplicationName,AssociatedUserFullNames | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names</h2>"
+    $ApplicationGroupNames = BrokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     
     $Header = Get-ReportHeader
 
     # Generating html report. 
-    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames" -Head $Header -Title "Invalid Names Report" -PostContent "<p>Report created: $(Get-Date)</p>"
+    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames" -Head $Header -Title "Invalid Names Report for scope $ScopeName" -PostContent "<p>Report created: $(Get-Date)</p>"
 
     # Write html report to file. 
     $HtmlReport | Out-File -FilePath $reportPath
