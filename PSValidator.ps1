@@ -78,11 +78,17 @@ function Compare-CatalogName
     {
         $r = Compare-String -StringValue $Name -Regex $Regex
         
+        $errorMessage = ""; 
+        if($r -eq $false) {
+            $errorMessage = "Catalog name does not comply with the naming standard.";
+        }        
+
         $prop = @{
             'Name'=$Name; 
             'IsValid'=$r; 
             'Category'="Catalog-Name";
             'ScopeName'=$ScopeName; 
+            'ErrorMessage'=$errorMessage; 
         }        
 
         $obj = New-Object -TypeName psobject -Property $prop        
@@ -137,13 +143,20 @@ function Compare-DesktopGroupName
     Process
     {
         $r = Compare-String -StringValue $Name -Regex $Regex
-        
+
+        $errorMessage = ""; 
+        if($r -eq $false) {
+            $errorMessage = "Desktop Group name does not comply with the naming standard.";
+        }        
+
         $prop = @{
             'Name'=$Name; 
             'IsValid'=$r; 
             'Category'="Desktop-Group-Name";   
-            'ScopeName'=$ScopeName;        
-        }        
+            'ScopeName'=$ScopeName; 
+            'ErrorMessage'=$errorMessage;       
+        } 
+
         $obj = New-Object -TypeName psobject -Property $prop        
         
         return $obj
@@ -193,8 +206,11 @@ function Compare-FilteredRule
     
     Process
     {  
+        $errorMessage = ""; 
         $isValid = $true; 
+
         if($AllowedUsers -eq "Filtered"){
+            $errorMessage = "Access policy rule is filtered, check it please.";
             $isValid = $false; # if AllowedUsers is Filtered, then IsValid is False. 
         }
 
@@ -203,6 +219,7 @@ function Compare-FilteredRule
             'IsValid'= $isValid; 
             'Category'="Filtered-Rule";
             'ScopeName'=$ScopeName; 
+            'ErrorMessage'=$errorMessage; 
         }        
 
         $obj = New-Object -TypeName psobject -Property $prop        
@@ -222,6 +239,7 @@ This function writes log information about invalid names found in Desktop Groups
    Write-InvalidNameToLogFile
 #>
 function Write-InvalidNameToLogFile {
+
 [CmdletBinding()]
 param (    
     [Parameter(
@@ -252,6 +270,13 @@ param (
         Position=3)]
     [string]$ScopeName, 
     
+    [Parameter(
+        Mandatory=$true,
+        ValueFromPipeline=$true, 
+        ValueFromPipelineByPropertyName=$true, 
+        Position=4)]
+    [string]$ErrorMessage, 
+    
     [Parameter()]
     [string]$Path = (Get-Location), 
 
@@ -268,14 +293,14 @@ Begin
         $fullPath
 
         if((Test-Path -Path $fullPath -PathType Leaf) -eq $false){
-            $firstLine = "Time,Name,IsValid,Category,Scope"
+            $firstLine = "Time,Name,IsValid,Category,Scope,ErrorMessage"
             $firstLine | Out-File -FilePath $fullPath -Append
         }
         
     }
     Process
     {
-        $newLine = "$time,$Name,$IsValid,$Category,$ScopeName"
+        $newLine = "$time,$Name,$IsValid,$Category,$ScopeName,$ErrorMessage"
         $newLine | Out-File -FilePath $fullPath -Append
     }
 }
@@ -315,13 +340,20 @@ function Compare-FilteredApplication
     
     Process
     { 
+        $errorMessage = ""; 
+
+        if($UserFilterEnabled -eq $false){
+            $errorMessage = "Application filter is not valid. Check it please. "
+        }
 
         $prop = @{
             'Name'=$ApplicationName; 
             'IsValid'= $UserFilterEnabled; 
             'Category'="Filtered-Application";
             'ScopeName'=$ScopeName; 
+            'ErrorMessage'=$errorMessage; 
         }        
+
         $obj = New-Object -TypeName psobject -Property $prop        
         
         return $obj
@@ -372,13 +404,20 @@ function Compare-ADGroupName
     {
         # comparing group name against the naming standard. 
         $r = Compare-String -StringValue $GroupName -Regex $Regex
-        
+        $errorMessage = ""; 
+
+        if($r -eq $false){
+            $errorMessage = "The AD Group Name does not comply with the naming standard."; 
+        }
+
         $prop = @{
             'Name'="$GroupName ($ApplicationName)"; 
             'IsValid'=$r; 
             'Category'="ADGroup-Name";
             'ScopeName'=$ScopeName; 
+            'ErrorMessage'=$errorMessage; 
         }  
+
         # creating the object for logging or reporting the results.       
         $obj = New-Object -TypeName psobject -Property $prop        
         
@@ -515,6 +554,12 @@ function Write-LogFiles {
         [string]
         $ScopeName, 
         
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $AdminAddress, 
+
         [Parameter()]
         [string]
         $Path = (Get-Location),     
@@ -525,7 +570,7 @@ function Write-LogFiles {
         
     )    
     
-    $adminScope = Get-AdminScope -Name $ScopeName; 
+    $adminScope = Get-AdminScope -Name $ScopeName -AdminAddress $AdminAddress
 
     # write invalid Desktop group names to log file     
     Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
@@ -559,6 +604,11 @@ function Write-HtmlReport {
         [string]
         $ScopeName, 
         
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string] $AdminAddress, 
+        
         [Parameter()]
         [string]
         $Path = (Get-Location),     
@@ -574,7 +624,7 @@ function Write-HtmlReport {
     $reportPath = "$Path\$ScopeName-$ReportName-$date.html"    
     $reportPath
     
-    $adminScope = Get-AdminScope -Name $ScopeName; 
+    $adminScope = Get-AdminScope -Name $ScopeName -AdminAddress $AdminAddress
 
     #Creating each section of the html report.
 
@@ -582,9 +632,11 @@ function Write-HtmlReport {
         
     $CatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
     
-    $FilteredRules = Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
-    
-    $FilteredApplications = Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Where-Object {$_.UserFilterEnabled -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
+    # $FilteredRules = Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
+
+    $FilteredRules = Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
+        
+    $FilteredApplications = Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
 
     $ApplicationGroupNames = BrokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     
@@ -607,6 +659,11 @@ function Start-Validation {
         )]
         [string] $ScopeName, 
         
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string] $AdminAddress, 
+        
         [Parameter()]
         [string] $Path = (Get-Location),     
 
@@ -616,12 +673,13 @@ function Start-Validation {
     )
         
     # Write to csv file by scope. 
-    Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+    Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName -AdminAddress $AdminAddress
 
     # write to html report file by scope. 
-    Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+    Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName -AdminAddress $AdminAddress
 
 }
 
 # start validation job by scope. 
-Start-Validation -ScopeName "APPBLU"
+# Change AdminAddress parameter to a valid address of a XenDesktop controller: 
+Start-Validation -ScopeName "APPBLU" -AdminAddress "127.0.0.1"

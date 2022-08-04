@@ -56,5 +56,11 @@ Only group
 6. Hacer que el script haga todas las validaciones por Scope.
 LOS SCOPES (6 Letras) son: 
 [APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]
+
 Esto para que cada área (scope) pueda ver y realizar las remediaciones.
+Se utiliza el comando get-adminScope para obtener info de cada scope. Este comando requiere el parametro -AdminAddress que
+es la dirección IP válida de un XenDesktop controller. 
+
+El script ahora se ejecuta mediante la función Start-Validation y los parametros son mandatorios: 
+Start-Validation -ScopeName "APPBLU" -AdminAddress "127.0.0.1"
 
