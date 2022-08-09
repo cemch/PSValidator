@@ -217,8 +217,7 @@ function Compare-FilteredRule
         # Comparing Scope Name vs. Desktop Group Name
         $Regex = '^D_' + $ScopeName; 
         $r = Compare-String -StringValue $DesktopGroupName -Regex $Regex
-
-        $errorMessage = ""; 
+        
         if($r -eq $false) {
             $ScopeName= "Not-Applicable";
         }        
@@ -333,17 +332,24 @@ function Compare-FilteredApplication
             Position=0)]
         [string]$ApplicationName,        
 
-        # UserFilteredEnabled is the property to validate. Must be true. 
+        # Application Name to validate if it is filtered
         [Parameter(
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=1)]
+        [string]$Name,        
+        
+        # UserFilteredEnabled is the property to validate. Must be true. 
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=2)]
         [bool]$UserFilterEnabled, 
 
         [Parameter(
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
-            Position=2)]
+            Position=3)]
         [bool]$ScopeName
     )
     
@@ -354,6 +360,14 @@ function Compare-FilteredApplication
         if($UserFilterEnabled -eq $false){
             $errorMessage = "Application filter is not valid. Check it please. "
         }
+        
+        # Comparing full Broker Application Name (Name attribute) vs. Scope Name
+        $Regex = '^' + $ScopeName; 
+        $r = Compare-String -StringValue $Name -Regex $Regex
+        
+        if($r -eq $false) {
+            $ScopeName= "Not-Applicable";
+        }        
 
         $prop = @{
             'Name'=$ApplicationName; 
@@ -520,29 +534,46 @@ function Compare-ApplicationGroupName
             Position=0)]
         [string]$ApplicationName,        
 
-        # Groups associated to the application filter
+        # Full Application Name to which the scope is validated
         [Parameter(
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
             Position=1)]
+        [string]$Name,        
+
+        # Groups associated to the application filter
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true, 
+            Position=2)]
         [string[]]$AssociatedUserFullNames, 
 
         [Parameter(
             Mandatory=$true,
             ValueFromPipelineByPropertyName=$true, 
-            Position=2)]
+            Position=3)]
         [string]$ScopeName
     )
     
     Process
-    {         
-       $results = @(); # Array of resultant objects to return. 
+    {
+        
+        # Comparing full Broker Application Name (Name attribute) vs. Scope Name
+        $Regex = '^' + $ScopeName; 
+        $r = Compare-String -StringValue $Name -Regex $Regex
+        
+        $results = @(); # Array of resultant objects to return. 
 
-       # comparing each group name against the naming standard. 
-        foreach ($groupName in $AssociatedUserFullNames) {            
-            $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
-            $results += $res; # adding objects to the array. 
-        }
+        if($r -eq $false) { # Not the same scope
+            $ScopeName= "Not-Applicable";
+        }   
+        else {
+            # comparing each group name against the naming standard for the scope name. 
+             foreach ($groupName in $AssociatedUserFullNames) {            
+                 $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
+                 $results += $res; # adding objects to the array. 
+             }            
+        }     
 
         return $results
     }    
@@ -579,8 +610,6 @@ function Write-LogFiles {
         
     )    
     
-    $adminScope = Get-AdminScope -Name $ScopeName -AdminAddress $AdminAddress
-
     # write invalid Desktop group names to log file     
     Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
@@ -591,10 +620,10 @@ function Write-LogFiles {
     Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate if application is user-filtered and write to log file if any. 
-    Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate application group name against naming standard. 
-    Get-BrokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
 }
 
@@ -633,21 +662,17 @@ function Write-HtmlReport {
     $reportPath = "$Path\$ScopeName-$ReportName-$date.html"    
     $reportPath
     
-    $adminScope = Get-AdminScope -Name $ScopeName -AdminAddress $AdminAddress
-
     #Creating each section of the html report.
 
     $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
         
     $CatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
     
-    # $FilteredRules = Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Where-Object {$_.AllowedUsers -eq "Filtered"} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
-
-    $FilteredRules = Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
+    $FilteredRules = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
         
-    $FilteredApplications = Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
+    $FilteredApplications = Get-brokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
 
-    $ApplicationGroupNames = BrokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
+    $ApplicationGroupNames = BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     
     $Header = Get-ReportHeader
 
