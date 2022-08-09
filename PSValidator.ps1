@@ -213,6 +213,15 @@ function Compare-FilteredRule
             $errorMessage = "Access policy rule is filtered, check it please.";
             $isValid = $false; # if AllowedUsers is Filtered, then IsValid is False. 
         }
+        
+        # Comparing Scope Name vs. Desktop Group Name
+        $Regex = '^D_' + $ScopeName; 
+        $r = Compare-String -StringValue $DesktopGroupName -Regex $Regex
+
+        $errorMessage = ""; 
+        if($r -eq $false) {
+            $ScopeName= "Not-Applicable";
+        }        
 
         $prop = @{
             'Name'=$Name; 
@@ -579,7 +588,7 @@ function Write-LogFiles {
     Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # write filtered policy rule to log file
-    Get-BrokerAccessPolicyRule -FilterScope $adminScope.Id | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
 
     # Validate if application is user-filtered and write to log file if any. 
     Get-brokerApplication -FilterScope $adminScope.Id | Select-Object -Property ApplicationName,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
