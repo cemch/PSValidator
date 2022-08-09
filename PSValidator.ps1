@@ -715,5 +715,4 @@ function Start-Validation {
 }
 
 # start validation job by scope. 
-# Change AdminAddress parameter to a valid address of a XenDesktop controller: 
-Start-Validation -ScopeName "APPBLU" -AdminAddress "127.0.0.1"
+Start-Validation -ScopeName "APPBLU"
