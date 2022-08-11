@@ -19,15 +19,13 @@ function Compare-String
         # String to compare against naming standard
         [Parameter(
             Mandatory=$true,
-            ValueFromPipeline=$true,
-            Position=0)]
+            ValueFromPipeline=$true)]
         [string]$StringValue,
 
         # Regular expression
         [Parameter(
             Mandatory=$true,
-            ValueFromPipeline=$false,
-            Position=1)]        
+            ValueFromPipeline=$false)]        
         [string]$Regex
     )
 
@@ -55,22 +53,20 @@ function Compare-CatalogName
         # Catalog name to compare against naming standard
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipeline=$true,
+            ValueFromPipelineByPropertyName=$true)]
         [string]$Name,
 
         # Scope name to validate
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ScopeName,
         
         # Regular expression for catalog names
         [Parameter(
             Mandatory=$false,
-            ValueFromPipeline=$false,
-            Position=2)]        
+            ValueFromPipelineByPropertyName=$true)]        
         [string]$Regex = '^C_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
@@ -125,15 +121,14 @@ function Compare-DesktopGroupName
         [string]$Name,
 
         [Parameter(
-            Mandatory=$true,
-            ValueFromPipeline=$true, 
+            Mandatory=$true,            
             ValueFromPipelineByPropertyName=$true)]
         [string]$ScopeName, 
 
         # Regular expression for delivery group names
         [Parameter(
             Mandatory=$false,
-            ValueFromPipeline=$false)]        
+            ValueFromPipelineByPropertyName=$true)]        
         [string]$Regex = '^D_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
@@ -230,77 +225,6 @@ function Compare-FilteredRule
 }
 
 
-<#
-.Synopsis
-   This function writes log information about invalid names
-.DESCRIPTION
-   
-This function writes log information about invalid names found in Desktop Groups and Catalogs. 
-.EXAMPLE
-   Write-InvalidNameToLogFile
-#>
-function Write-InvalidNameToLogFile {
-
-[CmdletBinding()]
-param (    
-    [Parameter(
-            Mandatory=$true,
-            ValueFromPipeline=$true, 
-            ValueFromPipelineByPropertyName=$true)]
-    [string]$Name, 
-
-    [Parameter(
-        Mandatory=$true,
-        ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true)]
-    [bool]$IsValid, 
-
-    [Parameter(
-        Mandatory=$true,
-        ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true)]
-    [string]$Category, 
-
-    [Parameter(
-        Mandatory=$true,
-        ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true)]
-    [string]$ScopeName, 
-    
-    [Parameter(
-        Mandatory=$true,
-        ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true)]
-    [string]$ErrorMessage, 
-    
-    [Parameter()]
-    [string]$Path = (Get-Location), 
-
-    [Parameter()]
-    [string]$LogName = "InvalidNames"
-)
-
-Begin
-    {      
-        $date = Get-Date -Format "yyyy-MM-dd"          
-        $time = (Get-Date).TimeOfDay
-
-        $fullPath = "$Path\$ScopeName-$LogName-$date.txt"
-        $fullPath
-
-        if((Test-Path -Path $fullPath -PathType Leaf) -eq $false){
-            $firstLine = "Time,Name,IsValid,Category,Scope,ErrorMessage"
-            $firstLine | Out-File -FilePath $fullPath -Append
-        }
-        
-    }
-    Process
-    {
-        $newLine = "$time,$Name,$IsValid,$Category,$ScopeName,$ErrorMessage"
-        $newLine | Out-File -FilePath $fullPath -Append
-    }
-}
-
 
 <#
 .Synopsis
@@ -345,6 +269,7 @@ function Compare-FilteredApplication
             $errorMessage = "Application filter is not valid. Check it please. "
         }
         
+        # TODO: Debug Regex and comparison...
         # Comparing full Broker Application Name (Name attribute) vs. Scope Name
         $Regex = '^' + $ScopeName; 
         $r = Compare-String -StringValue $Name -Regex $Regex
@@ -431,6 +356,106 @@ function Compare-ADGroupName
 
 <#
 .Synopsis
+   This function indicates if application-specific group complies with the naming standard.
+#>
+function Compare-ApplicationGroupName
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([psobject])]
+    Param
+    (
+        # Application Name to with the group name is validated
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$ApplicationName,        
+
+        # Full Application Name to which the scope is validated
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$Name,        
+
+        # Groups associated to the application filter
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string[]]$AssociatedUserFullNames, 
+
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$ScopeName
+    )
+    
+    Process
+    {
+        
+        # Comparing full Broker Application Name (Name attribute) vs. Scope Name
+        $Regex = '^' + $ScopeName; 
+        $r = Compare-String -StringValue $Name -Regex $Regex
+        
+        $results = @(); # Array of resultant objects to return. 
+
+        if($r -eq $false) { # Not the same scope
+            $ScopeName= "Not-Applicable";
+        }   
+        else {
+            # comparing each group name against the naming standard for the scope name. 
+             foreach ($groupName in $AssociatedUserFullNames) {            
+                 $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
+                 $results += $res; # adding objects to the array. 
+             }            
+        }     
+
+        return $results
+    }    
+}
+
+function Get-LogPath {
+
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([string])]
+    param (
+               
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $Folder,
+
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $ReportName, 
+
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $FileExtension,
+
+        [Parameter(
+            Mandatory=$true
+        )]
+        [string]
+        $ScopeName
+    )
+
+    $date = Get-Date -Format "yyyy-MM-dd"              
+
+    $fullPath = "$Folder\$ScopeName-$ReportName-$date.$FileExtension"
+    
+    return $fullPath
+
+}
+
+
+<#
+.Synopsis
    This function returns css style for the html report.
 #>
 function Get-ReportHeader {
@@ -496,65 +521,6 @@ $header = @"
 return $header
 }
 
-<#
-.Synopsis
-   This function indicates if application-specific group complies with the naming standard.
-#>
-function Compare-ApplicationGroupName
-{
-    [CmdletBinding()]
-    [Alias()]
-    [OutputType([psobject])]
-    Param
-    (
-        # Application Name to with the group name is validated
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true)]
-        [string]$ApplicationName,        
-
-        # Full Application Name to which the scope is validated
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true)]
-        [string]$Name,        
-
-        # Groups associated to the application filter
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true)]
-        [string[]]$AssociatedUserFullNames, 
-
-        [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true)]
-        [string]$ScopeName
-    )
-    
-    Process
-    {
-        
-        # Comparing full Broker Application Name (Name attribute) vs. Scope Name
-        $Regex = '^' + $ScopeName; 
-        $r = Compare-String -StringValue $Name -Regex $Regex
-        
-        $results = @(); # Array of resultant objects to return. 
-
-        if($r -eq $false) { # Not the same scope
-            $ScopeName= "Not-Applicable";
-        }   
-        else {
-            # comparing each group name against the naming standard for the scope name. 
-             foreach ($groupName in $AssociatedUserFullNames) {            
-                 $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
-                 $results += $res; # adding objects to the array. 
-             }            
-        }     
-
-        return $results
-    }    
-}
-
 
 <#
 .Synopsis
@@ -570,30 +536,31 @@ function Write-LogFiles {
         [string]
         $ScopeName, 
         
-        [Parameter()]
+        [Parameter(
+            Mandatory=$true
+        )]
         [string]
-        $Path = (Get-Location),     
-
-        [Parameter()]
-        [string]
-        $ReportName = "InvalidNames"
+        $LogPath
         
     )    
     
     # write invalid Desktop group names to log file     
-    Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name | Compare-DesktopGroupName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
     # write invalid Catalog name to log file     
-    Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name | Compare-CatalogName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
+    # TODO: Arreglar los parametros de ScopeName como se hizo en Compare-CatalogName
     # write filtered policy rule to log file
-    Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
+    # TODO: Arreglar los parametros de ScopeName como se hizo en Compare-CatalogName
     # Validate if application is user-filtered and write to log file if any. 
-    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
+    # TODO: Arreglar los parametros de ScopeName como se hizo en Compare-CatalogName
     # Validate application group name against naming standard. 
-    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile
+    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
 }
 
@@ -612,21 +579,13 @@ function Write-HtmlReport {
         [string]
         $ScopeName, 
         
-        [Parameter()]
+        [Parameter(
+            Mandatory=$true
+        )]
         [string]
-        $Path = (Get-Location),     
-
-        [Parameter()]
-        [string]
-        $ReportName = "InvalidNames"
-
+        $ReportPath 
     )
-    
-    # Path for html report
-    $date = Get-Date -Format "yyyy-MM-dd"              
-    $reportPath = "$Path\$ScopeName-$ReportName-$date.html"    
-    $reportPath
-    
+        
     #Creating each section of the html report.
 
     $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
@@ -645,10 +604,75 @@ function Write-HtmlReport {
     $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames" -Head $Header -Title "Invalid Names Report for scope $ScopeName" -PostContent "<p>Report created: $(Get-Date)</p>"
 
     # Write html report to file. 
-    $HtmlReport | Out-File -FilePath $reportPath
+    $HtmlReport | Out-File -FilePath $ReportPath
     
 }
 
+<#
+.Synopsis
+   This function writes log information about invalid names
+.DESCRIPTION
+   
+This function writes log information about invalid names found in Desktop Groups and Catalogs. 
+.EXAMPLE
+   Write-InvalidNameToLogFile
+#>
+function Write-InvalidNameToLogFile {
+
+    [CmdletBinding()]
+    param (    
+        [Parameter(
+                Mandatory=$true,
+                ValueFromPipeline=$true, 
+                ValueFromPipelineByPropertyName=$true)]
+        [string]$Name, 
+    
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipeline=$true, 
+            ValueFromPipelineByPropertyName=$true)]
+        [bool]$IsValid, 
+    
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipeline=$true, 
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$Category, 
+    
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipeline=$true, 
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$ScopeName, 
+        
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipeline=$true, 
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$ErrorMessage, 
+        
+        [Parameter(
+            Mandatory=$true,            
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$LogPath
+    )
+    
+    Begin
+        {                      
+            $time = (Get-Date).TimeOfDay
+                
+            if((Test-Path -Path $LogPath -PathType Leaf) -eq $false){
+                $firstLine = "Time,Name,IsValid,Category,Scope,ErrorMessage"
+                $firstLine | Out-File -FilePath $LogPath -Append
+            }            
+        }
+        Process
+        {
+            $newLine = "$time,$Name,$IsValid,$Category,$ScopeName,$ErrorMessage"
+            $newLine | Out-File -FilePath $LogPath -Append
+        }
+    }
+    
 function Start-Validation {
 
     param (
@@ -659,20 +683,24 @@ function Start-Validation {
         [string] $ScopeName, 
         
         [Parameter()]
-        [string] $Path = (Get-Location),     
+        [string] $FolderPath = (Get-Location),     
 
         [Parameter()]
         [string] $ReportName = "InvalidNames"
 
     )
         
+    $logPath = Get-LogPath -Folder $FolderPath -ReportName $ReportName -FileExtension "txt" -ScopeName $ScopeName
+
     # Write to csv file by scope. 
-    Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+    Write-LogFiles -ScopeName $ScopeName -LogPath $logPath
+
+    $reportPath = Get-LogPath -Folder $FolderPath -ReportName $ReportName -FileExtension "html" -ScopeName $ScopeName
 
     # write to html report file by scope. 
-    Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName
+    Write-HtmlReport -ScopeName $ScopeName -ReportPath $reportPath
 
 }
 
 # start validation job by scope. 
-Start-Validation -ScopeName "APPBLU"
+# Start-Validation -ScopeName "APPBLU"
