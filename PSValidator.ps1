@@ -121,22 +121,19 @@ function Compare-DesktopGroupName
         [Parameter(
             Mandatory=$true,
             ValueFromPipeline=$true, 
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$Name,
 
         [Parameter(
             Mandatory=$true,
             ValueFromPipeline=$true, 
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ScopeName, 
 
         # Regular expression for delivery group names
         [Parameter(
             Mandatory=$false,
-            ValueFromPipeline=$false,
-            Position=2)]        
+            ValueFromPipeline=$false)]        
         [string]$Regex = '^D_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}_[A-Z]{3}-[PRD|PPD|UAT|QUA|INT|DEV|OAT]{3}\z'
     )
     
@@ -178,28 +175,24 @@ function Compare-FilteredRule
         # Broker Access Policy Rule Name to validate if it is filtered
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$Name,
         
         # Desktop group name
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$DesktopGroupName,
 
         # Allowd users. Expected values are Filtered or AnyAuthenticated
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=2)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$AllowedUsers, 
 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=3)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ScopeName
 
     )
@@ -253,36 +246,31 @@ param (
     [Parameter(
             Mandatory=$true,
             ValueFromPipeline=$true, 
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipelineByPropertyName=$true)]
     [string]$Name, 
 
     [Parameter(
         Mandatory=$true,
         ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true, 
-        Position=1)]
+        ValueFromPipelineByPropertyName=$true)]
     [bool]$IsValid, 
 
     [Parameter(
         Mandatory=$true,
         ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true, 
-        Position=2)]
+        ValueFromPipelineByPropertyName=$true)]
     [string]$Category, 
 
     [Parameter(
         Mandatory=$true,
         ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true, 
-        Position=3)]
+        ValueFromPipelineByPropertyName=$true)]
     [string]$ScopeName, 
     
     [Parameter(
         Mandatory=$true,
         ValueFromPipeline=$true, 
-        ValueFromPipelineByPropertyName=$true, 
-        Position=4)]
+        ValueFromPipelineByPropertyName=$true)]
     [string]$ErrorMessage, 
     
     [Parameter()]
@@ -328,29 +316,25 @@ function Compare-FilteredApplication
         # Application Name to validate if it is filtered
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ApplicationName,        
 
         # Application Name to validate if it is filtered
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$Name,        
         
         # UserFilteredEnabled is the property to validate. Must be true. 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=2)]
+            ValueFromPipelineByPropertyName=$true)]
         [bool]$UserFilterEnabled, 
 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=3)]
-        [bool]$ScopeName
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$ScopeName
     )
     
     Process
@@ -397,28 +381,24 @@ function Compare-ADGroupName
         # Group name to compare against naming standard. 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$GroupName,
 
         # Regular expression for valid AD group names. Letters and numbers. 
         [Parameter(
             Mandatory=$false,
-            ValueFromPipeline=$false,
-            Position=1)]        
+            ValueFromPipeline=$false)]        
         [string]$Regex = '^[A-Z]{3}_GL_[A-Z]{3}-.+',
 
         # Application name owner of the group. 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=2)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ApplicationName = "", 
 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=3)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ScopeName
     
     )
@@ -530,28 +510,24 @@ function Compare-ApplicationGroupName
         # Application Name to with the group name is validated
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=0)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ApplicationName,        
 
         # Full Application Name to which the scope is validated
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=1)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$Name,        
 
         # Groups associated to the application filter
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=2)]
+            ValueFromPipelineByPropertyName=$true)]
         [string[]]$AssociatedUserFullNames, 
 
         [Parameter(
             Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true, 
-            Position=3)]
+            ValueFromPipelineByPropertyName=$true)]
         [string]$ScopeName
     )
     
@@ -594,12 +570,6 @@ function Write-LogFiles {
         [string]
         $ScopeName, 
         
-        [Parameter(
-            Mandatory=$true
-        )]
-        [string]
-        $AdminAddress, 
-
         [Parameter()]
         [string]
         $Path = (Get-Location),     
@@ -641,11 +611,6 @@ function Write-HtmlReport {
         )]
         [string]
         $ScopeName, 
-        
-        [Parameter(
-            Mandatory=$true
-        )]
-        [string] $AdminAddress, 
         
         [Parameter()]
         [string]
@@ -693,11 +658,6 @@ function Start-Validation {
         )]
         [string] $ScopeName, 
         
-        [Parameter(
-            Mandatory=$true
-        )]
-        [string] $AdminAddress, 
-        
         [Parameter()]
         [string] $Path = (Get-Location),     
 
@@ -707,10 +667,10 @@ function Start-Validation {
     )
         
     # Write to csv file by scope. 
-    Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName -AdminAddress $AdminAddress
+    Write-LogFiles -ScopeName $ScopeName -Path $Path -ReportName $ReportName
 
     # write to html report file by scope. 
-    Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName -AdminAddress $AdminAddress
+    Write-HtmlReport -ScopeName $ScopeName -Path $Path -ReportName $ReportName
 
 }
 
