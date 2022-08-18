@@ -38,6 +38,10 @@ Get-BrokerApplication -BrowserName "GVA - Notepad"
 UserFilterEnabled                : True  ok
 UserFilterEnabled                : False NOK
 
+Otras propiedades devueltas por Citrix: 
+Name = "WSCVDI\GDE\GDE - WIN-PAK"; 
+ApplicationName = "GDE - WIN-PAK"; 
+UserFilterEnabled = $false; 
 /*******************************************************************************************************************
 5. VALIDAR GRUPO EN AD PARA ESTANDAR DE NOMBRES (el que controla el acceso a las aplicaciones)
 

@@ -266,10 +266,9 @@ function Compare-FilteredApplication
         $errorMessage = ""; 
 
         if($UserFilterEnabled -eq $false){
-            $errorMessage = "Application filter is not valid. Check it please. "
+            $errorMessage = "Application filter is not valid. Check it please."
         }
-        
-        # TODO: Debug Regex and comparison...
+                
         # Comparing full Broker Application Name (Name attribute) vs. Scope Name
         $Regex = '^' + $ScopeName; 
         $r = Compare-String -StringValue $Name -Regex $Regex
@@ -391,7 +390,7 @@ function Compare-ApplicationGroupName
     
     Process
     {
-        
+
         # Comparing full Broker Application Name (Name attribute) vs. Scope Name
         $Regex = '^' + $ScopeName; 
         $r = Compare-String -StringValue $Name -Regex $Regex
@@ -401,14 +400,13 @@ function Compare-ApplicationGroupName
         if($r -eq $false) { # Not the same scope
             $ScopeName= "Not-Applicable";
         }   
-        else {
-            # comparing each group name against the naming standard for the scope name. 
-             foreach ($groupName in $AssociatedUserFullNames) {            
-                 $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
-                 $results += $res; # adding objects to the array. 
-             }            
-        }     
-
+        
+        # comparing each group name against the naming standard for the scope name. 
+        foreach ($groupName in $AssociatedUserFullNames) {            
+            $res = Compare-ADGroupName -GroupName $groupName -ApplicationName $ApplicationName -ScopeName $ScopeName
+            $results += $res; # adding objects to the array. 
+        }            
+    
         return $results
     }    
 }
@@ -549,16 +547,13 @@ function Write-LogFiles {
 
     # write invalid Catalog name to log file     
     Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name | Compare-CatalogName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
-
-    # TODO: Arreglar los parametros de ScopeName como se hizo en Compare-CatalogName
+    
     # write filtered policy rule to log file
     Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
-    # TODO: Arreglar los parametros de ScopeName como se hizo en Compare-CatalogName
     # Validate if application is user-filtered and write to log file if any. 
     Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
-    # TODO: Arreglar los parametros de ScopeName como se hizo en Compare-CatalogName
     # Validate application group name against naming standard. 
     Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
