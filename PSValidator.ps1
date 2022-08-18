@@ -697,5 +697,11 @@ function Start-Validation {
 
 }
 
-# start validation job by scope. 
-# Start-Validation -ScopeName "APPBLU"
+# Adding Citrix cmdlets 
+Add-PSSnapIn Citrix.*
+
+# Indicating delivery controllers IP
+Get-BrokerSite -AdminAddres 127...
+
+# Start validation job by scope. 
+Start-Validation -ScopeName "APPBLU"

@@ -67,4 +67,7 @@ es la dirección IP válida de un XenDesktop controller.
 
 El script ahora se ejecuta mediante la función Start-Validation y los parametros son mandatorios: 
 Start-Validation -ScopeName "APPBLU" -AdminAddress "127.0.0.1"
-
+/*******************************************************************************************************************
+7. Cargar los comandos de citrix antes de lanzar el script: 
+Asnp Citrix.*
+Get-BrokerSite -AdminAddres 127.
