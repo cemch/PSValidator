@@ -378,7 +378,7 @@ function Compare-ApplicationGroupName
 
         # Groups associated to the application filter
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipelineByPropertyName=$true)]
         [string[]]$AssociatedUserFullNames, 
 
