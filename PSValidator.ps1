@@ -591,7 +591,7 @@ function Write-HtmlReport {
         
     $FilteredApplications = Get-brokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
 
-    $ApplicationGroupNames = BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
+    $ApplicationGroupNames = Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     
     $Header = Get-ReportHeader
 
@@ -698,10 +698,10 @@ function Start-Validation {
 }
 
 # Adding Citrix cmdlets 
-Add-PSSnapIn Citrix.*
+# Add-PSSnapIn Citrix.*
 
-# Indicating delivery controllers IP
-Get-BrokerSite -AdminAddres 127...
+# # Indicating delivery controllers IP
+# Get-BrokerSite -AdminAddres 127...
 
-# Start validation job by scope. 
-Start-Validation -ScopeName "APPBLU"
+# # Start validation job by scope. 
+# Start-Validation -ScopeName "APPBLU"
