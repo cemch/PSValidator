@@ -411,6 +411,79 @@ function Compare-ApplicationGroupName
     }    
 }
 
+
+<#
+.Synopsis
+   This function indicates if machines are in unregistered state.
+#>
+function Compare-MachineState
+{
+    [CmdletBinding()]
+    [Alias()]
+    [OutputType([psobject])]
+    Param
+    (
+        # Machine name to validate if is unregistered
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$MachineName,        
+
+        # Registration state of the machine
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$RegistrationState,        
+
+        # Catalog name of the machine
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$CatalogName, 
+
+        # Scope name to validate
+        [Parameter(
+            Mandatory=$true,
+            ValueFromPipelineByPropertyName=$true)]
+        [string]$ScopeName
+    )
+    
+    Process
+    {
+
+        # Comparing Catalog name of the machine
+        $Regex = $ScopeName; 
+        $r = Compare-String -StringValue $CatalogName -Regex $Regex
+        
+        if($r -eq $false) { # If it does not match the same scope
+            $ScopeName= "Not-Applicable";
+        }   
+        
+        # Clean error message
+        $errorMessage = ""; 
+        $IsValid = $true; 
+
+        if($RegistrationState -eq "Unregistered"){            
+            $errorMessage = "Machine is in unregistered state. Check it please."
+            $IsValid = $false; 
+        }
+                
+        $prop = @{
+            'Name'=$MachineName; 
+            'IsValid'= $IsValid; 
+            'Category'="Unregistered-Machine";
+            'ScopeName'=$ScopeName; 
+            'ErrorMessage'=$errorMessage; 
+        }        
+
+        $obj = New-Object -TypeName psobject -Property $prop        
+        
+        return $obj
+        
+    }    
+}
+
+
 function Get-LogPath {
 
     [CmdletBinding()]
@@ -557,6 +630,8 @@ function Write-LogFiles {
     # Validate application group name against naming standard. 
     Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 
+    # Validate machines that are in unregistered state
+    Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
 }
 
 
@@ -593,10 +668,12 @@ function Write-HtmlReport {
 
     $ApplicationGroupNames = Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     
+    $UnregisteredMachines = Get-brokerApplication | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Unregistered Machines for scope $ScopeName</h2>"
+    
     $Header = Get-ReportHeader
 
     # Generating html report. 
-    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames" -Head $Header -Title "Invalid Names Report for scope $ScopeName" -PostContent "<p>Report created: $(Get-Date)</p>"
+    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames $UnregisteredMachines" -Head $Header -Title "Report of issues for scope $ScopeName" -PostContent "<p>Report created: $(Get-Date)</p>"
 
     # Write html report to file. 
     $HtmlReport | Out-File -FilePath $ReportPath
