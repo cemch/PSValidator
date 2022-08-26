@@ -668,7 +668,7 @@ function Write-HtmlReport {
 
     $ApplicationGroupNames = Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     
-    $UnregisteredMachines = Get-brokerApplication | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Unregistered Machines for scope $ScopeName</h2>"
+    $UnregisteredMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Unregistered Machines for scope $ScopeName</h2>"
     
     $Header = Get-ReportHeader
 
@@ -781,4 +781,4 @@ function Start-Validation {
 # Get-BrokerSite -AdminAddres 127...
 
 # # Start validation job by scope. 
-# Start-Validation -ScopeName "APPBLU"
+Start-Validation -ScopeName "APPBLU"
