@@ -615,23 +615,56 @@ function Write-LogFiles {
         
     )    
     
-    # write invalid Desktop group names to log file     
-    Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name | Compare-DesktopGroupName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
+    # START: write invalid Desktop group names to log file   
+    $arrInvalidBrokerDesktopGroup = @(); 
+    $arrInvalidBrokerDesktopGroup = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name | Compare-DesktopGroupName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false}     
+    if($arrInvalidBrokerDesktopGroup.Count -gt 0)
+    {
+        # Writing to file only if there is an invalid broker desktop group, as required. 
+        $arrInvalidBrokerDesktopGroup | Write-InvalidNameToLogFile -LogPath $LogPath
+    }    
+    # END: write invalid Desktop group names to log file   
 
-    # write invalid Catalog name to log file     
-    Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name | Compare-CatalogName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
-    
-    # write filtered policy rule to log file
-    Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
+    # START: write invalid Catalog names to log file     
+    $arrInvalidCatalog = @(); 
+    $arrInvalidCatalog = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name | Compare-CatalogName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false}    
+    if($arrInvalidCatalog.Count -gt 0) {
+        $arrInvalidCatalog | Write-InvalidNameToLogFile -LogPath $LogPath
+    }    
+    # END: write invalid Catalog names to log file     
 
-    # Validate if application is user-filtered and write to log file if any. 
-    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
+    # START: write invalid filtered policy rules to log file
+    $arrInvalidBrokerAccessPolicyRule = @(); 
+    $arrInvalidBrokerAccessPolicyRule = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}     
+    if($arrInvalidBrokerAccessPolicyRule -gt 0){
+        $arrInvalidBrokerAccessPolicyRule | Write-InvalidNameToLogFile -LogPath $LogPath
+    }    
+    # END: write invalid filtered policy rules to logs file
 
-    # Validate application group name against naming standard. 
-    Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
+    # START: Write invalid broker applications to log file. 
+    $arrInvalidBrokerApplication = @(); 
+    $arrInvalidBrokerApplication = Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
+    if($arrInvalidBrokerApplication -gt 0) {
+        $arrInvalidBrokerApplication | Write-InvalidNameToLogFile -LogPath $LogPath
+    }
+    # END: Write invalid broker applications to log file. 
 
-    # Validate machines that are in unregistered state
-    Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | Write-InvalidNameToLogFile -LogPath $LogPath
+    # START: Validate application group names against naming standard. 
+    $arrInvalidBrokerApplicationName = @(); 
+    $arrInvalidBrokerApplicationName = Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
+    if($arrInvalidBrokerApplicationName -gt 0){
+        $arrInvalidBrokerApplicationName | Write-InvalidNameToLogFile -LogPath $LogPath
+    }
+    # END: Validate application group names against naming standard. 
+
+    # START: Validate machines that are in unregistered state
+    $arrInvalidBrokerMachines = @(); 
+    $arrInvalidBrokerMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
+    if($arrInvalidBrokerMachines -gt 0) {
+        $arrInvalidBrokerMachines | Write-InvalidNameToLogFile -LogPath $LogPath
+    }
+    # END: Validate machines that are in unregistered state
+
 }
 
 
