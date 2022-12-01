@@ -636,7 +636,7 @@ function Write-LogFiles {
     # START: write invalid filtered policy rules to log file
     $arrInvalidBrokerAccessPolicyRule = @(); 
     $arrInvalidBrokerAccessPolicyRule = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}     
-    if($arrInvalidBrokerAccessPolicyRule -gt 0){
+    if($arrInvalidBrokerAccessPolicyRule.Count -gt 0){
         $arrInvalidBrokerAccessPolicyRule | Write-InvalidNameToLogFile -LogPath $LogPath
     }    
     # END: write invalid filtered policy rules to logs file
@@ -644,7 +644,7 @@ function Write-LogFiles {
     # START: Write invalid broker applications to log file. 
     $arrInvalidBrokerApplication = @(); 
     $arrInvalidBrokerApplication = Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
-    if($arrInvalidBrokerApplication -gt 0) {
+    if($arrInvalidBrokerApplication.Count -gt 0) {
         $arrInvalidBrokerApplication | Write-InvalidNameToLogFile -LogPath $LogPath
     }
     # END: Write invalid broker applications to log file. 
@@ -652,7 +652,7 @@ function Write-LogFiles {
     # START: Validate application group names against naming standard. 
     $arrInvalidBrokerApplicationName = @(); 
     $arrInvalidBrokerApplicationName = Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
-    if($arrInvalidBrokerApplicationName -gt 0){
+    if($arrInvalidBrokerApplicationName.Count -gt 0){
         $arrInvalidBrokerApplicationName | Write-InvalidNameToLogFile -LogPath $LogPath
     }
     # END: Validate application group names against naming standard. 
@@ -660,7 +660,7 @@ function Write-LogFiles {
     # START: Validate machines that are in unregistered state
     $arrInvalidBrokerMachines = @(); 
     $arrInvalidBrokerMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
-    if($arrInvalidBrokerMachines -gt 0) {
+    if($arrInvalidBrokerMachines.Count -gt 0) {
         $arrInvalidBrokerMachines | Write-InvalidNameToLogFile -LogPath $LogPath
     }
     # END: Validate machines that are in unregistered state
