@@ -691,25 +691,72 @@ function Write-HtmlReport {
         
     #Creating each section of the html report.
 
-    $DesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
+    # START: Invalid desktop group names report
+    $invalidDesktopGroupNamesReport = ""; 
+    $invalidDesktopGroupNames = @(); 
+    $invalidDesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} 
+    if($invalidDesktopGroupNames.Count -gt 0) {
+        $invalidDesktopGroupNamesReport = $invalidDesktopGroupNames | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
+    }
+    # END: Invalid desktop group names report
+
+    # START: Invalid broker catalog names report
+    $invalidCatalogNamesReport = ""; 
+    $invalidCatalogNames = @(); 
+    $invalidCatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} 
+    if($invalidCatalogNames.Count -gt 0) {
+        $invalidCatalogNamesReport = $invalidCatalogNames | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
+    }    
+    # END: Invalid broker catalog names report
+
+    # START: Invalid filtered rules report
+    $invalidFilteredRulesReport = ""; 
+    $invalidFilteredRules = @(); 
+    $invalidFilteredRules = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    if($invalidFilteredRules.Count -gt 0){
+        $invalidFilteredRulesReport = $invalidFilteredRules | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
+    }
+    # END: Invalid filtered rules report
+
+    # START: Invalid filtered applications report
+    $invalidFilteredApplicationsReport = ""; 
+    $invalidFilteredApplications = @(); 
+    $invalidFilteredApplications = Get-brokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    if($invalidFilteredApplications.Count -gt 0){
+        $invalidFilteredApplicationsReport = $invalidFilteredApplications | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
+    }
+    # END: Invalid filtered applications report
+
+    # START: Invalid Application Group names report
+    $invalidApplicationGroupNamesReport = ""; 
+    $invalidApplicationGroupNames = @(); 
+    $invalidApplicationGroupNames = Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    if($invalidApplicationGroupNames.Count -gt 0){
+        $invalidApplicationGroupNamesReport = $invalidApplicationGroupNames | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
+    }
+    # END: Invalid Application Group names report
+
+    # START: Unregistered Machines report
+    $unregisteredMachinesReport = ""; 
+    $unregisteredMachines = @(); 
+    $unregisteredMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    if($unregisteredMachines.Count -gt 0){
+        $unregisteredMachinesReport = $unregisteredMachines | ConvertTo-Html -Fragment -PreContent "<h2>Unregistered Machines for scope $ScopeName</h2>"
+    }
+    # END: Unregistered Machines report
+
+    # Generating de report only if there is an issue. 
+    if(($invalidDesktopGroupNames.Count -gt 0) -or ($invalidCatalogNames.Count -gt 0) -or ($invalidFilteredRules.Count -gt 0) -or 
+        ($invalidFilteredApplications.Count -gt 0) -or ($invalidApplicationGroupNames.Count -gt 0) -or ($unregisteredMachines.Count -gt 0) ){
+            
+        $Header = Get-ReportHeader
         
-    $CatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
-    
-    $FilteredRules = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
+        # Generating html report. 
+        $HtmlReport = ConvertTo-Html -Body "$invalidDesktopGroupNamesReport $invalidCatalogNamesReport $invalidFilteredRulesReport $invalidFilteredApplicationsReport $invalidApplicationGroupNamesReport $unregisteredMachinesReport" -Head $Header -Title "Report of issues for scope $ScopeName" -PostContent "<p>Report created: $(Get-Date)</p>"
         
-    $FilteredApplications = Get-brokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
-
-    $ApplicationGroupNames = Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
-    
-    $UnregisteredMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} | ConvertTo-Html -Fragment -PreContent "<h2>Unregistered Machines for scope $ScopeName</h2>"
-    
-    $Header = Get-ReportHeader
-
-    # Generating html report. 
-    $HtmlReport = ConvertTo-Html -Body "$DesktopGroupNames $CatalogNames $FilteredRules $FilteredApplications $ApplicationGroupNames $UnregisteredMachines" -Head $Header -Title "Report of issues for scope $ScopeName" -PostContent "<p>Report created: $(Get-Date)</p>"
-
-    # Write html report to file. 
-    $HtmlReport | Out-File -FilePath $ReportPath
+        # Write html report to file. 
+        $HtmlReport | Out-File -FilePath $ReportPath
+    }
     
 }
 
