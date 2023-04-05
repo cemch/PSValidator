@@ -77,3 +77,6 @@ Get-BrokerSite -AdminAddres 127.
 Get-BrokerMachine | select MachineName, RegistrationState, MachineInternalState, CatalogName
 CatalogName or DesktopGroupName entregan información del scope que se debe validar. 
 
+/*******************************************************************************************************************
+9. Solamente generar archivos de log y reporte si encontró un issue. 
+Esto requiere la implementación de nueva lógica de comparación para saber si hay issues por cada item analizado. 
