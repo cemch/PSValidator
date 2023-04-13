@@ -18,7 +18,7 @@ function Compare-String
     (
         # String to compare against naming standard
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipeline=$true)]
         [string]$StringValue,
 
@@ -175,13 +175,13 @@ function Compare-FilteredRule
         
         # Desktop group name
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipelineByPropertyName=$true)]
         [string]$DesktopGroupName,
 
         # Allowd users. Expected values are Filtered or AnyAuthenticated
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipelineByPropertyName=$true)]
         [string]$AllowedUsers, 
 
@@ -304,8 +304,7 @@ function Compare-ADGroupName
     (
         # Group name to compare against naming standard. 
         [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true)]
+            Mandatory=$false)]
         [string]$GroupName,
 
         # Regular expression for valid AD group names. Letters and numbers. 
@@ -861,4 +860,4 @@ function Start-Validation {
 # Get-BrokerSite -AdminAddres 127...
 
 # # Start validation job by scope. 
-Start-Validation -ScopeName "APPBLU"
+# Start-Validation -ScopeName "APPBLU"

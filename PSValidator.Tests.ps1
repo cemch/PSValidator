@@ -1,9 +1,35 @@
 $ErrorActionPreference = "Stop"
 Set-StrictMode -Version Latest
 
+BeforeAll {
+
+    function Get-BrokerAccessPolicyRule {
+        return "call to Get-BrokerAccessPolicyRule"
+    }
+    
+    function Get-BrokerApplication {
+        return "call to Get-BrokerApplication"
+    }
+   
+    function Get-BrokerCatalog {
+        return "call to Get-BrokerCatalog"
+    }
+    
+    function Get-BrokerDesktopGroup {
+        return "call to Get-BrokerDesktopGroup"
+    }
+   
+    function Get-BrokerMachine {
+        return "call to Get-BrokerMachine"
+    }
+     
+    . $PSCommandPath.Replace('.Tests.ps1','.ps1')
+}
+
 Describe "Compare-String Tests" {
 
     It "Should return True if StringValue matches the Regex" {
+        
         Compare-String -StringValue "C_APPBLU" -Regex '^C_[APPBLU|APPGRE|APPIND|APPRED|APPYEL|WSCEMS|WSCVDI]{6}' | Should -BeTrue
     }
 
@@ -123,6 +149,10 @@ Describe "Compare-ADGroupName Tests"{
 
     It " IsValid should be false if group name is incorrect ... " {
         (Compare-ADGroupName -GroupName "SCM_GG_GVA-ConsoleSCCM" -ApplicationName "GDE - WIN-PAK" -ScopeName "WSCVDI").IsValid | Should -BeFalse
+    }
+
+    It " IsValid should be false if group name is empty string ... " {
+        (Compare-ADGroupName -GroupName "" -ApplicationName "GDE - WIN-PAK" -ScopeName "WSCVDI").IsValid | Should -BeFalse
     }
 }
 
