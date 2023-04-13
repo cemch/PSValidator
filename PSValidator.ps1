@@ -18,7 +18,7 @@ function Compare-String
     (
         # String to compare against naming standard
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipeline=$true)]
         [string]$StringValue,
 
@@ -175,13 +175,13 @@ function Compare-FilteredRule
         
         # Desktop group name
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipelineByPropertyName=$true)]
         [string]$DesktopGroupName,
 
         # Allowd users. Expected values are Filtered or AnyAuthenticated
         [Parameter(
-            Mandatory=$true,
+            Mandatory=$false,
             ValueFromPipelineByPropertyName=$true)]
         [string]$AllowedUsers, 
 
@@ -304,8 +304,7 @@ function Compare-ADGroupName
     (
         # Group name to compare against naming standard. 
         [Parameter(
-            Mandatory=$true,
-            ValueFromPipelineByPropertyName=$true)]
+            Mandatory=$false)]
         [string]$GroupName,
 
         # Regular expression for valid AD group names. Letters and numbers. 
@@ -617,7 +616,7 @@ function Write-LogFiles {
     
     # START: write invalid Desktop group names to log file   
     $arrInvalidBrokerDesktopGroup = @(); 
-    $arrInvalidBrokerDesktopGroup = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name | Compare-DesktopGroupName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false}     
+    $arrInvalidBrokerDesktopGroup = @(Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name | Compare-DesktopGroupName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false});     
     if($arrInvalidBrokerDesktopGroup.Count -gt 0)
     {
         # Writing to file only if there is an invalid broker desktop group, as required. 
@@ -627,7 +626,7 @@ function Write-LogFiles {
 
     # START: write invalid Catalog names to log file     
     $arrInvalidCatalog = @(); 
-    $arrInvalidCatalog = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name | Compare-CatalogName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false}    
+    $arrInvalidCatalog = @(Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name | Compare-CatalogName -ScopeName $ScopeName | Where-Object {$_.IsValid -eq $false});
     if($arrInvalidCatalog.Count -gt 0) {
         $arrInvalidCatalog | Write-InvalidNameToLogFile -LogPath $LogPath
     }    
@@ -635,7 +634,7 @@ function Write-LogFiles {
 
     # START: write invalid filtered policy rules to log file
     $arrInvalidBrokerAccessPolicyRule = @(); 
-    $arrInvalidBrokerAccessPolicyRule = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}     
+    $arrInvalidBrokerAccessPolicyRule = @(Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false});
     if($arrInvalidBrokerAccessPolicyRule.Count -gt 0){
         $arrInvalidBrokerAccessPolicyRule | Write-InvalidNameToLogFile -LogPath $LogPath
     }    
@@ -643,7 +642,7 @@ function Write-LogFiles {
 
     # START: Write invalid broker applications to log file. 
     $arrInvalidBrokerApplication = @(); 
-    $arrInvalidBrokerApplication = Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
+    $arrInvalidBrokerApplication = @(Get-BrokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled,@{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false});
     if($arrInvalidBrokerApplication.Count -gt 0) {
         $arrInvalidBrokerApplication | Write-InvalidNameToLogFile -LogPath $LogPath
     }
@@ -651,7 +650,7 @@ function Write-LogFiles {
 
     # START: Validate application group names against naming standard. 
     $arrInvalidBrokerApplicationName = @(); 
-    $arrInvalidBrokerApplicationName = Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
+    $arrInvalidBrokerApplicationName = @(Get-BrokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames,@{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}); 
     if($arrInvalidBrokerApplicationName.Count -gt 0){
         $arrInvalidBrokerApplicationName | Write-InvalidNameToLogFile -LogPath $LogPath
     }
@@ -659,7 +658,7 @@ function Write-LogFiles {
 
     # START: Validate machines that are in unregistered state
     $arrInvalidBrokerMachines = @(); 
-    $arrInvalidBrokerMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false} 
+    $arrInvalidBrokerMachines = @(Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}); 
     if($arrInvalidBrokerMachines.Count -gt 0) {
         $arrInvalidBrokerMachines | Write-InvalidNameToLogFile -LogPath $LogPath
     }
@@ -694,7 +693,7 @@ function Write-HtmlReport {
     # START: Invalid desktop group names report
     $invalidDesktopGroupNamesReport = ""; 
     $invalidDesktopGroupNames = @(); 
-    $invalidDesktopGroupNames = Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false} 
+    $invalidDesktopGroupNames = @(Get-BrokerDesktopGroup -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-DesktopGroupName | Where-Object {$_.IsValid -eq $false});
     if($invalidDesktopGroupNames.Count -gt 0) {
         $invalidDesktopGroupNamesReport = $invalidDesktopGroupNames | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Desktop Group Names for scope $ScopeName</h2>"
     }
@@ -703,7 +702,7 @@ function Write-HtmlReport {
     # START: Invalid broker catalog names report
     $invalidCatalogNamesReport = ""; 
     $invalidCatalogNames = @(); 
-    $invalidCatalogNames = Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false} 
+    $invalidCatalogNames = @(Get-BrokerCatalog -ScopeName $ScopeName | Select-Object -Property Name, @{n='ScopeName';e={$ScopeName}} | Compare-CatalogName | Where-Object {$_.IsValid -eq $false});
     if($invalidCatalogNames.Count -gt 0) {
         $invalidCatalogNamesReport = $invalidCatalogNames | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Catalog Names for scope $ScopeName</h2>"
     }    
@@ -712,7 +711,7 @@ function Write-HtmlReport {
     # START: Invalid filtered rules report
     $invalidFilteredRulesReport = ""; 
     $invalidFilteredRules = @(); 
-    $invalidFilteredRules = Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    $invalidFilteredRules = @(Get-BrokerAccessPolicyRule | Select-Object -Property Name,DesktopGroupName,AllowedUsers, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredRule | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false});
     if($invalidFilteredRules.Count -gt 0){
         $invalidFilteredRulesReport = $invalidFilteredRules | ConvertTo-Html -Fragment -PreContent "<h2>Filtered Broker Access Policy Rules for scope $ScopeName</h2>"
     }
@@ -721,7 +720,7 @@ function Write-HtmlReport {
     # START: Invalid filtered applications report
     $invalidFilteredApplicationsReport = ""; 
     $invalidFilteredApplications = @(); 
-    $invalidFilteredApplications = Get-brokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    $invalidFilteredApplications = @(Get-brokerApplication | Select-Object -Property ApplicationName,Name,UserFilterEnabled, @{n='ScopeName';e={$ScopeName}} | Compare-FilteredApplication | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false});
     if($invalidFilteredApplications.Count -gt 0){
         $invalidFilteredApplicationsReport = $invalidFilteredApplications | ConvertTo-Html -Fragment -PreContent "<h2>Applications with User Filter Disabled for scope $ScopeName</h2>"
     }
@@ -730,7 +729,7 @@ function Write-HtmlReport {
     # START: Invalid Application Group names report
     $invalidApplicationGroupNamesReport = ""; 
     $invalidApplicationGroupNames = @(); 
-    $invalidApplicationGroupNames = Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    $invalidApplicationGroupNames = @(Get-brokerApplication | Select-Object -Property ApplicationName,Name,AssociatedUserFullNames, @{n='ScopeName';e={$ScopeName}} | Compare-ApplicationGroupName | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false});
     if($invalidApplicationGroupNames.Count -gt 0){
         $invalidApplicationGroupNamesReport = $invalidApplicationGroupNames | ConvertTo-Html -Fragment -PreContent "<h2>Invalid Application Group names for scope $ScopeName</h2>"
     }
@@ -739,7 +738,7 @@ function Write-HtmlReport {
     # START: Unregistered Machines report
     $unregisteredMachinesReport = ""; 
     $unregisteredMachines = @(); 
-    $unregisteredMachines = Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false}
+    $unregisteredMachines = @(Get-BrokerMachine | Select-Object -Property MachineName,RegistrationState,CatalogName,@{n='ScopeName';e={$ScopeName}} | Compare-MachineState | Where-Object {$_.ScopeName -eq $ScopeName -and $_.IsValid -eq $false});
     if($unregisteredMachines.Count -gt 0){
         $unregisteredMachinesReport = $unregisteredMachines | ConvertTo-Html -Fragment -PreContent "<h2>Unregistered Machines for scope $ScopeName</h2>"
     }
@@ -861,4 +860,4 @@ function Start-Validation {
 # Get-BrokerSite -AdminAddres 127...
 
 # # Start validation job by scope. 
-Start-Validation -ScopeName "APPBLU"
+# Start-Validation -ScopeName "APPBLU"
